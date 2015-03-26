@@ -1,4 +1,4 @@
-package main
+package credulous
 
 import (
 	"errors"
@@ -15,14 +15,14 @@ type Instancer interface {
 	ListAccountAliases() (*iam.AccountAliasesResp, error)
 }
 
-func getAWSUsernameAndAlias(cred Credential) (username, alias string, err error) {
+func GetAWSUsernameAndAlias(cred Credential) (username, alias string, err error) {
 	auth := aws.Auth{
 		AccessKey: cred.KeyId,
 		SecretKey: cred.SecretKey,
 	}
 	// Note: the region is irrelevant for IAM
 	instance := iam.New(auth, aws.APSoutheast2)
-	username, err = getAWSUsername(instance)
+	username, err = GetAWSUsername(instance)
 	if err != nil {
 		return "", "", err
 	}
@@ -35,7 +35,7 @@ func getAWSUsernameAndAlias(cred Credential) (username, alias string, err error)
 	return username, alias, nil
 }
 
-func getAWSUsername(instance Instancer) (string, error) {
+func GetAWSUsername(instance Instancer) (string, error) {
 	response, err := instance.GetUser("")
 	if err != nil {
 		return "", err
@@ -43,9 +43,9 @@ func getAWSUsername(instance Instancer) (string, error) {
 	return response.User.Name, nil
 }
 
-func getKeyCreateDate(instance Instancer) (string, error) {
+func GetKeyCreateDate(instance Instancer) (string, error) {
 	response, err := instance.AccessKeys("")
-	panic_the_err(err)
+	Panic_the_err(err)
 	// This mess is because iam.IAM and TestIamInstance are structs
 	elem := reflect.ValueOf(instance).Elem()
 	auth := elem.FieldByName("Auth")

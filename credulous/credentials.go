@@ -1,4 +1,4 @@
-package main
+package credulous
 
 import (
 	"encoding/json"
@@ -61,14 +61,14 @@ type OldCredential struct {
 }
 
 type SaveData struct {
-	cred     Credential
-	username string
-	alias    string
-	pubkeys  []ssh.PublicKey
-	lifetime int
-	force    bool
-	repo     string
-	isRepo   bool
+	Cred     Credential
+	Username string
+	Alias    string
+	Pubkeys  []ssh.PublicKey
+	Lifetime int
+	Force    bool
+	Repo     string
+	IsRepo   bool
 }
 
 func decodeOldCredential(data []byte, keyfile string) (*OldCredential, error) {
@@ -215,34 +215,23 @@ func (cred Credentials) WriteToDisk(repo, filename string) (err error) {
 	if err != nil {
 		return err
 	}
-	isrepo, err := isGitRepo(repo)
-	if err != nil {
-		return err
-	}
-	if !isrepo {
-		return nil
-	}
-	relpath := filepath.Join(cred.AccountAliasOrId, cred.IamUsername, filename)
-	_, err = gitAddCommitFile(repo, relpath, "Added by Credulous")
-	if err != nil {
-		return err
-	}
 	return nil
 }
 
 func (cred OldCredential) Display(output io.Writer) {
-	fmt.Fprintf(output, "export AWS_ACCESS_KEY_ID=\"%v\"\nexport AWS_SECRET_ACCESS_KEY=\"%v\"\n", cred.KeyId, cred.SecretKey)
+	fmt.Fprintf(output, Config.EnvVarTemplate, "AWS_ACCESS_KEY_ID", cred.KeyId)
+	fmt.Fprintf(output, Config.EnvVarTemplate, "AWS_SECRET_ACCESS_KEY", cred.SecretKey)
 }
 
 func (cred Credentials) Display(output io.Writer) {
-	fmt.Fprintf(output, "export AWS_ACCESS_KEY_ID=\"%v\"\nexport AWS_SECRET_ACCESS_KEY=\"%v\"\n",
+	fmt.Fprintf(output, Config.EnvVarTemplate,
 		cred.Encryptions[0].decoded.KeyId, cred.Encryptions[0].decoded.SecretKey)
 	for key, val := range cred.Encryptions[0].decoded.EnvVars {
-		fmt.Fprintf(output, "export %s=\"%s\"\n", key, val)
+		fmt.Fprintf(output, Config.EnvVarTemplate, key, val)
 	}
 }
 
-func (creds Credentials) verifyUserAndAccount() error {
+func (creds Credentials) VerifyUserAndAccount() error {
 	// need to check both the username and the account alias for the
 	// supplied creds match the passed-in username and account alias
 	auth := aws.Auth{
@@ -275,7 +264,7 @@ func (creds Credentials) verifyUserAndAccount() error {
 
 // Only delete the oldest key *if* the new key is valid; otherwise,
 // delete the newest key
-func (cred *Credential) deleteOneKey(username string) (err error) {
+func (cred *Credential) DeleteOneKey(username string) (err error) {
 	auth := aws.Auth{
 		AccessKey: cred.KeyId,
 		SecretKey: cred.SecretKey,
@@ -332,7 +321,7 @@ func (cred *Credential) deleteOneKey(username string) (err error) {
 	return nil
 }
 
-func (cred *Credential) createNewAccessKey(username string) (err error) {
+func (cred *Credential) CreateNewAccessKey(username string) (err error) {
 	auth := aws.Auth{
 		AccessKey: cred.KeyId,
 		SecretKey: cred.SecretKey,
@@ -357,18 +346,18 @@ func (cred *Credential) createNewAccessKey(username string) (err error) {
 //     * new one is inactive
 //     * old one is inactive
 // * We successfully delete the oldest key, but fail in creating the new key (eg network, permission issues)
-func (cred *Credential) rotateCredentials(username string) (err error) {
-	err = cred.deleteOneKey(username)
+func (cred *Credential) RotateCredentials(username string) (err error) {
+	err = cred.DeleteOneKey(username)
 	if err != nil {
 		return err
 	}
-	err = cred.createNewAccessKey(username)
+	err = cred.CreateNewAccessKey(username)
 	if err != nil {
 		return err
 	}
 	// Loop until the credentials are active
 	count := 0
-	for _, _, err = getAWSUsernameAndAlias(*cred); err != nil && count < ROTATE_TIMEOUT; _, _, err = getAWSUsernameAndAlias(*cred) {
+	for _, _, err = GetAWSUsernameAndAlias(*cred); err != nil && count < ROTATE_TIMEOUT; _, _, err = GetAWSUsernameAndAlias(*cred) {
 		time.Sleep(1 * time.Second)
 		count += 1
 	}
@@ -383,25 +372,25 @@ func SaveCredentials(data SaveData) (err error) {
 
 	var key_create_date int64
 
-	if data.force {
+	if data.Force {
 		key_create_date = time.Now().Unix()
 	} else {
-		auth := aws.Auth{AccessKey: data.cred.KeyId, SecretKey: data.cred.SecretKey}
+		auth := aws.Auth{AccessKey: data.Cred.KeyId, SecretKey: data.Cred.SecretKey}
 		instance := iam.New(auth, aws.APSoutheast2)
-		if data.username == "" {
-			data.username, err = getAWSUsername(instance)
+		if data.Username == "" {
+			data.Username, err = GetAWSUsername(instance)
 			if err != nil {
 				return err
 			}
 		}
-		if data.alias == "" {
-			data.alias, err = getAWSAccountAlias(instance)
+		if data.Alias == "" {
+			data.Alias, err = getAWSAccountAlias(instance)
 			if err != nil {
 				return err
 			}
 		}
 
-		date, _ := getKeyCreateDate(instance)
+		date, _ := GetKeyCreateDate(instance)
 		t, err := time.Parse("2006-01-02T15:04:05Z", date)
 		key_create_date = t.Unix()
 		if err != nil {
@@ -409,14 +398,14 @@ func SaveCredentials(data SaveData) (err error) {
 		}
 	}
 
-	fmt.Printf("saving credentials for %s@%s\n", data.username, data.alias)
-	plaintext, err := json.Marshal(data.cred)
+	fmt.Printf("saving credentials for %s@%s\n", data.Username, data.Alias)
+	plaintext, err := json.Marshal(data.Cred)
 	if err != nil {
 		return err
 	}
 
 	enc_slice := []Encryption{}
-	for _, pubkey := range data.pubkeys {
+	for _, pubkey := range data.Pubkeys {
 		encoded, err := CredulousEncode(string(plaintext), pubkey)
 		if err != nil {
 			return err
@@ -429,15 +418,15 @@ func SaveCredentials(data SaveData) (err error) {
 	}
 	creds := Credentials{
 		Version:          FORMAT_VERSION,
-		AccountAliasOrId: data.alias,
-		IamUsername:      data.username,
+		AccountAliasOrId: data.Alias,
+		IamUsername:      data.Username,
 		CreateTime:       fmt.Sprintf("%d", key_create_date),
 		Encryptions:      enc_slice,
-		LifeTime:         data.lifetime,
+		LifeTime:         data.Lifetime,
 	}
 
-	filename := fmt.Sprintf("%v-%v.json", key_create_date, data.cred.KeyId[12:])
-	err = creds.WriteToDisk(data.repo, filename)
+	filename := fmt.Sprintf("%v-%v.json", key_create_date, data.Cred.KeyId[12:])
+	err = creds.WriteToDisk(data.Repo, filename)
 	return err
 }
 
@@ -488,7 +477,7 @@ func (cred Credentials) ValidateCredentials(alias string, username string) error
 		return err
 	}
 
-	err := cred.verifyUserAndAccount()
+	err := cred.VerifyUserAndAccount()
 	if err != nil {
 		return err
 	}
@@ -498,23 +487,23 @@ func (cred Credentials) ValidateCredentials(alias string, username string) error
 func RetrieveCredentials(rootPath string, alias string, username string, keyfile string) (Credentials, error) {
 	rootDir, err := os.Open(rootPath)
 	if err != nil {
-		panic_the_err(err)
+		Panic_the_err(err)
 	}
 
 	if alias == "" {
 		if alias, err = findDefaultDir(rootDir); err != nil {
-			panic_the_err(err)
+			Panic_the_err(err)
 		}
 	}
 
 	if username == "" {
 		aliasDir, err := os.Open(filepath.Join(rootPath, alias))
 		if err != nil {
-			panic_the_err(err)
+			Panic_the_err(err)
 		}
 		username, err = findDefaultDir(aliasDir)
 		if err != nil {
-			panic_the_err(err)
+			Panic_the_err(err)
 		}
 	}
 
@@ -530,11 +519,11 @@ func RetrieveCredentials(rootPath string, alias string, username string, keyfile
 
 func latestFileInDir(dir string) os.FileInfo {
 	entries, err := ioutil.ReadDir(dir)
-	panic_the_err(err)
+	Panic_the_err(err)
 	return entries[len(entries)-1]
 }
 
-func listAvailableCredentials(rootDir FileLister) ([]string, error) {
+func ListAvailableCredentials(rootDir FileLister) ([]string, error) {
 	creds := make(map[string]int)
 
 	repo_dirs, err := getDirs(rootDir) // get just the directories

@@ -1,4 +1,4 @@
-package main
+package credulous
 
 import (
 	"errors"
@@ -35,7 +35,7 @@ func (t *TestIamInstance) ListAccountAliases() (*iam.AccountAliasesResp, error) 
 }
 
 func TestGetAWSUsername(t *testing.T) {
-	Convey("Test getAWSUsername", t, func() {
+	Convey("Test GetAWSUsername", t, func() {
 		tstInst := TestIamInstance{
 			getUserResp: iam.GetUserResp{
 				RequestId: "abc123",
@@ -47,13 +47,13 @@ func TestGetAWSUsername(t *testing.T) {
 				},
 			},
 		}
-		resp, _ := getAWSUsername(&tstInst)
+		resp, _ := GetAWSUsername(&tstInst)
 		So(resp, ShouldEqual, "foonly")
 	})
 }
 
 func TestGetKeyCreateDate(t *testing.T) {
-	Convey("Test getKeyCreateDate", t, func() {
+	Convey("Test GetKeyCreateDate", t, func() {
 		tstKey := []iam.AccessKey{}
 		tstKey = append(tstKey, iam.AccessKey{
 			UserName:   "bob",
@@ -72,7 +72,7 @@ func TestGetKeyCreateDate(t *testing.T) {
 				SecretKey: "sooper-seekrit",
 			},
 		}
-		date, err := getKeyCreateDate(&tstInst)
+		date, err := GetKeyCreateDate(&tstInst)
 		So(date, ShouldEqual, tstKey[0].CreateDate)
 		So(err, ShouldEqual, nil)
 	})

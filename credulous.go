@@ -11,15 +11,42 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	"code.google.com/p/go.crypto/ssh"
 
-	"code.google.com/p/gopass"
 	"github.com/codegangsta/cli"
+	"github.com/howeyc/gopass"
 )
 
 const ENV_PATTERN string = "^[A-Za-z_][A-Za-z0-9_]*=.*"
+
+type CredulousConfig struct {
+	EnvVarTemplate string
+	Home           string
+}
+
+var Config CredulousConfig
+
+// Setup defaults
+const FORMAT_WINDOWS_ENV_VARS string = `$env:%s="%s"\n`
+const FORMAT_LINUX_ENV_VARS string = `export %s="%s"\n`
+
+func init() {
+	if runtime.GOOS == "windows" {
+		Config = CredulousConfig{
+			Home:           os.Getenv("USERPROFILE"),
+			EnvVarTemplate: FORMAT_WINDOWS_ENV_VARS,
+		}
+	} else {
+		Config = CredulousConfig{
+			Home:           os.Getenv("HOME"),
+			EnvVarTemplate: FORMAT_WINDOWS_ENV_VARS,
+		}
+	}
+	fmt.Printf("Path: %s", Config.Home)
+}
 
 func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 	var err error
@@ -29,7 +56,7 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 
 	// we already emit the prompt to stderr; GetPass only emits to stdout
 	var passwd string
-	passwd, err = gopass.GetPass("")
+	passwd = string(gopass.GetPasswd()) // TODO: deal with error
 	fmt.Fprintln(os.Stderr, "")
 	if err != nil {
 		return []byte(""), err
@@ -50,7 +77,7 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 
 func getPrivateKey(c *cli.Context) (filename string) {
 	if c.String("key") == "" {
-		filename = filepath.Join(os.Getenv("HOME"), "/.ssh/id_rsa")
+		filename = MakePath(filepath.Join(Config.Home, "/.ssh/id_rsa"))
 	} else {
 		filename = c.String("key")
 	}
@@ -153,7 +180,7 @@ func readSSHPubkeyFile(filename string) (pubkey ssh.PublicKey, err error) {
 func parseKeyArgs(c *cli.Context) (pubkeys []ssh.PublicKey, err error) {
 	// no args, so just use the default
 	if len(c.StringSlice("key")) == 0 {
-		pubkey, err := readSSHPubkeyFile(filepath.Join(os.Getenv("HOME"), "/.ssh/id_rsa.pub"))
+		pubkey, err := readSSHPubkeyFile(MakePath(filepath.Join(Config.Home, "/.ssh/id_rsa.pub")))
 		if err != nil {
 			return nil, err
 		}
@@ -460,4 +487,11 @@ func main() {
 
 func rotate(cred Credential) (err error) {
 	return nil
+}
+
+func MakePath(path string) string {
+	if runtime.GOOS == "windows" {
+		return strings.Replace(path, "/", "\\", -1)
+	}
+	return path
 }

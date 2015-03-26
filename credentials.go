@@ -231,14 +231,15 @@ func (cred Credentials) WriteToDisk(repo, filename string) (err error) {
 }
 
 func (cred OldCredential) Display(output io.Writer) {
-	fmt.Fprintf(output, "export AWS_ACCESS_KEY_ID=\"%v\"\nexport AWS_SECRET_ACCESS_KEY=\"%v\"\n", cred.KeyId, cred.SecretKey)
+	fmt.Fprintf(output, Config.EnvVarTemplate, "AWS_ACCESS_KEY_ID", cred.KeyId)
+	fmt.Fprintf(output, Config.EnvVarTemplate, "AWS_SECRET_ACCESS_KEY", cred.SecretKey)
 }
 
 func (cred Credentials) Display(output io.Writer) {
-	fmt.Fprintf(output, "export AWS_ACCESS_KEY_ID=\"%v\"\nexport AWS_SECRET_ACCESS_KEY=\"%v\"\n",
+	fmt.Fprintf(output, Config.EnvVarTemplate,
 		cred.Encryptions[0].decoded.KeyId, cred.Encryptions[0].decoded.SecretKey)
 	for key, val := range cred.Encryptions[0].decoded.EnvVars {
-		fmt.Fprintf(output, "export %s=\"%s\"\n", key, val)
+		fmt.Fprintf(output, Config.EnvVarTemplate, key, val)
 	}
 }
 

@@ -23,8 +23,7 @@ func ensure_directory(path string) {
 }
 
 func getRootPath() string {
-	home := os.Getenv("HOME")
-	rootPath := home + "/.credulous"
+	rootPath := MakePath(Config.Home + "/.credulous")
 	os.MkdirAll(rootPath, 0700)
 	return rootPath
 }

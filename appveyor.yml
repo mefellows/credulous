@@ -1,0 +1,6 @@
+version: 0.2.{build}-alpha
+build_script:
+- ps: >-
+    $env:BUILD_NUMBER=$env:APPVEYOR_BUILD_NUMBER
+
+    .\generate-win-pkgs.ps1

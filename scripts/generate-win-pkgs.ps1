@@ -16,7 +16,8 @@ cd ../../../
 #>
 make install
 
-cd git2go && git submodule update --init
+cd git2go 
+git submodule update --init
 make install
 cd $TRAVIS_BUILD_DIR
 go get -v -t ./...

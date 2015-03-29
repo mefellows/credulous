@@ -3,4 +3,5 @@ build_script:
 - ps: >-
     $env:BUILD_NUMBER=$env:APPVEYOR_BUILD_NUMBER
 
-    .\generate-win-pkgs.ps1
+    .\scripts\generate-win-pkgs.ps1
+

@@ -215,18 +215,6 @@ func (cred Credentials) WriteToDisk(repo, filename string) (err error) {
 	if err != nil {
 		return err
 	}
-	isrepo, err := isGitRepo(repo)
-	if err != nil {
-		return err
-	}
-	if !isrepo {
-		return nil
-	}
-	relpath := filepath.Join(cred.AccountAliasOrId, cred.IamUsername, filename)
-	_, err = gitAddCommitFile(repo, relpath, "Added by Credulous")
-	if err != nil {
-		return err
-	}
 	return nil
 }
 

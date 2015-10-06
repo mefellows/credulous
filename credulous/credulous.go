@@ -37,5 +37,16 @@ func init() {
 // Func GetAccounts
 
 // Func Getcredulous.Credentials(account)
-func GetAccounts()    {}
+func GetAccounts() []string {
+	fmt.Printf("Accounts")
+	rootDir, err := os.Open(GetRootPath())
+	if err != nil {
+		Panic_the_err(err)
+	}
+	set, err := ListAvailableCredentials(rootDir)
+	if err != nil {
+		return nil
+	}
+	return set
+}
 func GetCredentials() {}

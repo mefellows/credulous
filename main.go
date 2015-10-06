@@ -8,8 +8,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"github.com/codegangsta/cli"
-	"github.com/howeyc/gopass"
 	"github.com/mefellows/credulous/credulous"
+	"github.com/peterh/liner"
 	"io/ioutil"
 	"log"
 	"os"
@@ -25,8 +25,11 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 	}
 
 	// we already emit the prompt to stderr; GetPass only emits to stdout
-	var passwd string
-	passwd = string(gopass.GetPasswd()) // TODO: deal with error
+	in := liner.NewLiner()
+	in.SetCtrlCAborts(true)
+	maskedPass, _ := in.PasswordPrompt(fmt.Sprintf("Enter password"))
+	in.Close()
+	var passwd = string(maskedPass)
 	fmt.Fprintln(os.Stderr, "")
 	if err != nil {
 		return []byte(""), err

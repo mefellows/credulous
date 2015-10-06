@@ -2,7 +2,6 @@ package credulous
 
 import (
 	"code.google.com/p/go.crypto/ssh"
-	"code.google.com/p/gopass"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
@@ -14,6 +13,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/peterh/liner"
 	"io"
 	"io/ioutil"
 	"log"
@@ -260,7 +260,11 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 
 	// we already emit the prompt to stderr; GetPass only emits to stdout
 	var passwd string
-	passwd, err = gopass.GetPass("")
+	in := liner.NewLiner()
+	in.SetCtrlCAborts(true)
+	maskedPass, _ := in.PasswordPrompt(fmt.Sprintf("Enter password"))
+	in.Close()
+	passwd = string(maskedPass)
 	fmt.Fprintln(os.Stderr, "")
 	if err != nil {
 		return []byte(""), err

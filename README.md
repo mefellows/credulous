@@ -7,6 +7,10 @@ key** is able to see and use them. Furthermore the tool will also enable
 the user to **easily rotate** their current credentials without breaking
 the user's current workflow.
 
+*NOTE*: This is a fork of the [original](https://github.com/realestate-com-au/credulous/)
+Credulous aimed at providing Windows support, and enabling it to be used 
+as a library. Please use the original unless you wish to try this out.
+
 ## Main Features
 
 * Your IAM Credentials are securely encrypted on disk.

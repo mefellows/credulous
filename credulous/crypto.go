@@ -1,6 +1,8 @@
-package main
+package credulous
 
 import (
+	"code.google.com/p/go.crypto/ssh"
+	"code.google.com/p/gopass"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
@@ -16,10 +18,9 @@ import (
 	"io/ioutil"
 	"log"
 	"math/big"
+	"os"
 	"reflect"
 	"strings"
-
-	"code.google.com/p/go.crypto/ssh"
 )
 
 type Salter interface {
@@ -249,4 +250,31 @@ func SSHPrivateFingerprint(privkey rsa.PrivateKey) (fingerprint string, err erro
 	}
 	fingerprint = SSHFingerprint(sshPubkey)
 	return fingerprint, nil
+}
+
+func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
+	var err error
+	if _, err = fmt.Fprintf(os.Stderr, "Enter passphrase for %s: ", filename); err != nil {
+		return []byte(""), err
+	}
+
+	// we already emit the prompt to stderr; GetPass only emits to stdout
+	var passwd string
+	passwd, err = gopass.GetPass("")
+	fmt.Fprintln(os.Stderr, "")
+	if err != nil {
+		return []byte(""), err
+	}
+
+	var decryptedBytes []byte
+	if decryptedBytes, err = x509.DecryptPEMBlock(pemblock, []byte(passwd)); err != nil {
+		return []byte(""), err
+	}
+
+	pemBytes := pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: decryptedBytes,
+	}
+	decryptedPEM := pem.EncodeToMemory(&pemBytes)
+	return decryptedPEM, nil
 }

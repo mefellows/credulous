@@ -1,4 +1,4 @@
-package main
+package credulous
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ func TestGitAdd(t *testing.T) {
 
 	// need to create a new repo first
 	repo, err := git.InitRepository(repopath, false)
-	panic_the_err(err)
+	Panic_the_err(err)
 	defer os.RemoveAll(path.Clean(path.Join(repo.Path(), "..")))
 
 	// Need to add some basic config so that tests will pass

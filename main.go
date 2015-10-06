@@ -1,52 +1,23 @@
 package main
 
 import (
+	"code.google.com/p/go.crypto/ssh"
+	"errors"
+
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
 	"fmt"
+	"github.com/codegangsta/cli"
+	"github.com/howeyc/gopass"
+	"github.com/realestate-com-au/credulous/credulous"
 	"io/ioutil"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
-
-	"code.google.com/p/go.crypto/ssh"
-
-	"github.com/codegangsta/cli"
-	"github.com/howeyc/gopass"
 )
-
-const ENV_PATTERN string = "^[A-Za-z_][A-Za-z0-9_]*=.*"
-
-type CredulousConfig struct {
-	EnvVarTemplate string
-	Home           string
-}
-
-var Config CredulousConfig
-
-// Setup defaults
-const FORMAT_WINDOWS_ENV_VARS string = `$env:%s="%s"\n`
-const FORMAT_LINUX_ENV_VARS string = `export %s="%s"\n`
-
-func init() {
-	if runtime.GOOS == "windows" {
-		Config = CredulousConfig{
-			Home:           os.Getenv("USERPROFILE"),
-			EnvVarTemplate: FORMAT_WINDOWS_ENV_VARS,
-		}
-	} else {
-		Config = CredulousConfig{
-			Home:           os.Getenv("HOME"),
-			EnvVarTemplate: FORMAT_WINDOWS_ENV_VARS,
-		}
-	}
-	fmt.Printf("Path: %s", Config.Home)
-}
 
 func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 	var err error
@@ -77,7 +48,7 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 
 func getPrivateKey(c *cli.Context) (filename string) {
 	if c.String("key") == "" {
-		filename = MakePath(filepath.Join(Config.Home, "/.ssh/id_rsa"))
+		filename = credulous.MakePath(filepath.Join(credulous.Config.Home, "/.ssh/id_rsa"))
 	} else {
 		filename = c.String("key")
 	}
@@ -151,7 +122,7 @@ func parseEnvironmentArgs(c *cli.Context) (map[string]string, error) {
 
 	envMap := make(map[string]string)
 	for _, arg := range c.StringSlice("env") {
-		match, err := regexp.Match(ENV_PATTERN, []byte(arg))
+		match, err := regexp.Match(credulous.ENV_PATTERN, []byte(arg))
 		if err != nil {
 			return nil, err
 		}
@@ -180,7 +151,7 @@ func readSSHPubkeyFile(filename string) (pubkey ssh.PublicKey, err error) {
 func parseKeyArgs(c *cli.Context) (pubkeys []ssh.PublicKey, err error) {
 	// no args, so just use the default
 	if len(c.StringSlice("key")) == 0 {
-		pubkey, err := readSSHPubkeyFile(MakePath(filepath.Join(Config.Home, "/.ssh/id_rsa.pub")))
+		pubkey, err := readSSHPubkeyFile(credulous.MakePath(filepath.Join(credulous.Config.Home, "/.ssh/id_rsa.pub")))
 		if err != nil {
 			return nil, err
 		}
@@ -213,37 +184,37 @@ func parseLifetimeArgs(c *cli.Context) (lifetime int, err error) {
 func parseRepoArgs(c *cli.Context) (repo string, err error) {
 	// the default is 'local' which is set below, so not much to do here
 	if c.String("repo") == "local" {
-		repo = path.Join(getRootPath(), "local")
+		repo = path.Join(credulous.GetRootPath(), "local")
 	} else {
 		repo = c.String("repo")
 	}
 	return repo, nil
 }
 
-func parseSaveArgs(c *cli.Context) (cred Credential, username, account string, pubkeys []ssh.PublicKey, lifetime int, repo string, err error) {
+func parseSaveArgs(c *cli.Context) (cred credulous.Credential, username, account string, pubkeys []ssh.PublicKey, lifetime int, repo string, err error) {
 	pubkeys, err = parseKeyArgs(c)
 	if err != nil {
-		return Credential{}, "", "", nil, 0, "", err
+		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
 	username, account, err = parseUserAndAccount(c)
 	if err != nil {
-		return Credential{}, "", "", nil, 0, "", err
+		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
 	envmap, err := parseEnvironmentArgs(c)
 	if err != nil {
-		return Credential{}, "", "", nil, 0, "", err
+		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
 	lifetime, err = parseLifetimeArgs(c)
 	if err != nil {
-		return Credential{}, "", "", nil, 0, "", err
+		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
 	repo, err = parseRepoArgs(c)
 	if err != nil {
-		return Credential{}, "", "", nil, 0, "", err
+		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
 	AWSAccessKeyId := os.Getenv("AWS_ACCESS_KEY_ID")
@@ -251,10 +222,10 @@ func parseSaveArgs(c *cli.Context) (cred Credential, username, account string, p
 	if AWSAccessKeyId == "" || AWSSecretAccessKey == "" {
 		err := errors.New("Can't save, no credentials in the environment")
 		if err != nil {
-			return Credential{}, "", "", nil, 0, "", err
+			return credulous.Credential{}, "", "", nil, 0, "", err
 		}
 	}
-	cred = Credential{
+	cred = credulous.Credential{
 		KeyId:     AWSAccessKeyId,
 		SecretKey: AWSSecretAccessKey,
 		EnvVars:   envmap,
@@ -266,7 +237,7 @@ func parseSaveArgs(c *cli.Context) (cred Credential, username, account string, p
 func main() {
 	app := cli.NewApp()
 	app.Name = "credulous"
-	app.Usage = "Secure AWS Credential Management"
+	app.Usage = "Secure AWS credulous.Credential Management"
 	app.Version = "0.2.2"
 
 	app.Commands = []cli.Command{
@@ -287,7 +258,7 @@ func main() {
 				cli.IntFlag{
 					Name:  "lifetime, l",
 					Value: 0,
-					Usage: "\n        Credential lifetime in seconds (0 means forever)",
+					Usage: "\n        credulous.Credential lifetime in seconds (0 means forever)",
 				},
 				cli.BoolFlag{
 					Name: "force, f",
@@ -312,17 +283,17 @@ func main() {
 			},
 			Action: func(c *cli.Context) {
 				cred, username, account, pubkeys, lifetime, repo, err := parseSaveArgs(c)
-				panic_the_err(err)
-				err = SaveCredentials(SaveData{
-					cred:     cred,
-					username: username,
-					alias:    account,
-					pubkeys:  pubkeys,
-					lifetime: lifetime,
-					force:    c.Bool("force"),
-					repo:     repo,
+				credulous.Panic_the_err(err)
+				err = credulous.SaveCredentials(credulous.SaveData{
+					Cred:     cred,
+					Username: username,
+					Alias:    account,
+					Pubkeys:  pubkeys,
+					Lifetime: lifetime,
+					Force:    c.Bool("force"),
+					Repo:     repo,
 				})
-				panic_the_err(err)
+				credulous.Panic_the_err(err)
 			},
 		},
 
@@ -348,7 +319,7 @@ func main() {
 				cli.StringFlag{
 					Name:  "credentials, c",
 					Value: "",
-					Usage: "\n        Credentials, for example username@account",
+					Usage: "\n        credulous.Credentials, for example username@account",
 				},
 				cli.BoolFlag{
 					Name:  "force, f",
@@ -364,21 +335,21 @@ func main() {
 				keyfile := getPrivateKey(c)
 				account, username, err := getAccountAndUserName(c)
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
 				repo, err := parseRepoArgs(c)
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
-				creds, err := RetrieveCredentials(repo, account, username, keyfile)
+				creds, err := credulous.RetrieveCredentials(repo, account, username, keyfile)
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
 
 				if !c.Bool("force") {
 					err = creds.ValidateCredentials(account, username)
 					if err != nil {
-						panic_the_err(err)
+						credulous.Panic_the_err(err)
 					}
 				}
 				creds.Display(os.Stdout)
@@ -393,15 +364,15 @@ func main() {
 				AWSSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
 				if AWSAccessKeyId == "" || AWSSecretAccessKey == "" {
 					err := errors.New("No amazon credentials are currently in your environment")
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
-				cred := Credential{
+				cred := credulous.Credential{
 					KeyId:     AWSAccessKeyId,
 					SecretKey: AWSSecretAccessKey,
 				}
-				username, alias, err := getAWSUsernameAndAlias(cred)
+				username, alias, err := credulous.GetAWSUsernameAndAlias(cred)
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
 				fmt.Printf("%s@%s\n", username, alias)
 			},
@@ -422,13 +393,13 @@ func main() {
 			Name:  "list",
 			Usage: "List available AWS credentials",
 			Action: func(c *cli.Context) {
-				rootDir, err := os.Open(getRootPath())
+				rootDir, err := os.Open(credulous.GetRootPath())
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
-				set, err := listAvailableCredentials(rootDir)
+				set, err := credulous.ListAvailableCredentials(rootDir)
 				if err != nil {
-					panic_the_err(err)
+					credulous.Panic_the_err(err)
 				}
 				for _, cred := range set {
 					fmt.Println(cred)
@@ -463,21 +434,21 @@ func main() {
 			},
 			Action: func(c *cli.Context) {
 				cred, _, _, pubkeys, lifetime, repo, err := parseSaveArgs(c)
-				panic_the_err(err)
-				username, account, err := getAWSUsernameAndAlias(cred)
-				panic_the_err(err)
-				err = (&cred).rotateCredentials(username)
-				panic_the_err(err)
-				err = SaveCredentials(SaveData{
-					cred:     cred,
-					username: username,
-					alias:    account,
-					pubkeys:  pubkeys,
-					lifetime: lifetime,
-					force:    c.Bool("force"),
-					repo:     repo,
+				credulous.Panic_the_err(err)
+				username, account, err := credulous.GetAWSUsernameAndAlias(cred)
+				credulous.Panic_the_err(err)
+				err = (&cred).RotateCredentials(username)
+				credulous.Panic_the_err(err)
+				err = credulous.SaveCredentials(credulous.SaveData{
+					Cred:     cred,
+					Username: username,
+					Alias:    account,
+					Pubkeys:  pubkeys,
+					Lifetime: lifetime,
+					Force:    c.Bool("force"),
+					Repo:     repo,
 				})
-				panic_the_err(err)
+				credulous.Panic_the_err(err)
 			},
 		},
 	}
@@ -485,13 +456,6 @@ func main() {
 	app.Run(os.Args)
 }
 
-func rotate(cred Credential) (err error) {
+func rotate(cred credulous.Credential) (err error) {
 	return nil
-}
-
-func MakePath(path string) string {
-	if runtime.GOOS == "windows" {
-		return strings.Replace(path, "/", "\\", -1)
-	}
-	return path
 }

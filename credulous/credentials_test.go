@@ -1,10 +1,10 @@
-package main
+package credulous
 
 import (
+	. "github.com/smartystreets/goconvey/convey"
 	"os"
 	"testing"
 	"time"
-	. "github.com/smartystreets/goconvey/convey"
 	// "io/ioutil"
 	// "fmt"
 )
@@ -139,7 +139,7 @@ func TestFindDefaultDir(t *testing.T) {
 func TestValidateCredentials(t *testing.T) {
 	Convey("Test credential validation", t, func() {
 		// we can't really test ValidateCredentials directly,
-		// because it calls verifyUserAndAccount, which
+		// because it calls VerifyUserAndAccount, which
 		// creates its own IAM connection. This is probably not
 		// the best way to have implemented that function.
 		// goamz provides an iamtest package, and we should
@@ -184,7 +184,7 @@ func TestListAvailableCreds(t *testing.T) {
 	Convey("Test listing available credentials", t, func() {
 		Convey("Test with no credentials", func() {
 			tmp := TestFileList{}
-			creds, err := listAvailableCredentials(&tmp)
+			creds, err := ListAvailableCredentials(&tmp)
 			So(len(creds), ShouldEqual, 0)
 			So(err.Error(), ShouldEqual, "No saved credentials found; please run 'credulous save' first")
 		})

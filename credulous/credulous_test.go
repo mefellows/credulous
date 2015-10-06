@@ -1,4 +1,4 @@
-package main
+package credulous
 
 import (
 	. "github.com/smartystreets/goconvey/convey"

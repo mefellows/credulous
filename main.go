@@ -9,11 +9,10 @@ import (
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/howeyc/gopass"
-	"github.com/realestate-com-au/credulous/credulous"
+	"github.com/mefellows/credulous/credulous"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -47,12 +46,7 @@ func decryptPEM(pemblock *pem.Block, filename string) ([]byte, error) {
 }
 
 func getPrivateKey(c *cli.Context) (filename string) {
-	if c.String("key") == "" {
-		filename = credulous.MakePath(filepath.Join(credulous.Config.Home, "/.ssh/id_rsa"))
-	} else {
-		filename = c.String("key")
-	}
-	return filename
+	return credulous.GetPrivateKey(filename)
 }
 
 func splitUserAndAccount(arg string) (string, string, error) {
@@ -181,16 +175,6 @@ func parseLifetimeArgs(c *cli.Context) (lifetime int, err error) {
 	return c.Int("lifetime"), nil
 }
 
-func parseRepoArgs(c *cli.Context) (repo string, err error) {
-	// the default is 'local' which is set below, so not much to do here
-	if c.String("repo") == "local" {
-		repo = path.Join(credulous.GetRootPath(), "local")
-	} else {
-		repo = c.String("repo")
-	}
-	return repo, nil
-}
-
 func parseSaveArgs(c *cli.Context) (cred credulous.Credential, username, account string, pubkeys []ssh.PublicKey, lifetime int, repo string, err error) {
 	pubkeys, err = parseKeyArgs(c)
 	if err != nil {
@@ -212,7 +196,7 @@ func parseSaveArgs(c *cli.Context) (cred credulous.Credential, username, account
 		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
 
-	repo, err = parseRepoArgs(c)
+	repo, err = credulous.ParseRepoArgs(c.String("repo"))
 	if err != nil {
 		return credulous.Credential{}, "", "", nil, 0, "", err
 	}
@@ -337,7 +321,7 @@ func main() {
 				if err != nil {
 					credulous.Panic_the_err(err)
 				}
-				repo, err := parseRepoArgs(c)
+				repo, err := credulous.ParseRepoArgs(c.String("repo"))
 				if err != nil {
 					credulous.Panic_the_err(err)
 				}

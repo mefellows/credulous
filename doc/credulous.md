@@ -1,4 +1,4 @@
-% credulous(1) | Version ==VERSION==
+% credulous(1) | Version 0.2.2.unknown
 % Colin Panisset, Mike Bailey et. al., REA Group
 % Jun 2, 2014
 

@@ -6,7 +6,7 @@ import (
 
 	"crypto/rsa"
 
-	"code.google.com/p/go.crypto/ssh"
+	"golang.org/x/crypto/ssh"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
